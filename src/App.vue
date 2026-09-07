@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import {
+  BarElement,
   CategoryScale,
   Chart as ChartJS,
   Filler,
@@ -11,7 +12,7 @@ import {
   Title,
   Tooltip,
 } from 'chart.js'
-import { Line } from 'vue-chartjs'
+import { Bar, Line } from 'vue-chartjs'
 import metrics from './data/metrics.json'
 
 type MetricMonth = {
@@ -25,7 +26,7 @@ type MetricMonth = {
 
 const dataset = metrics as MetricMonth[]
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler)
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler)
 
 const selectedMonth = ref('all')
 const theme = ref<'dark' | 'light'>('dark')
@@ -110,6 +111,37 @@ const summaryCards = computed(() => {
 const chartLabels = computed(() => visibleData.value.map((item) => item.label))
 const chartValues = computed(() => visibleData.value.map((item) => Number(item.conversion.toFixed(2))))
 
+const revenueChartDataset = computed(() => ({
+  labels: chartLabels.value,
+  datasets: [
+    {
+      label: 'Monthly revenue',
+      data: visibleData.value.map((item) => item.revenue),
+      backgroundColor: theme.value === 'dark' ? '#4ade80' : '#16a34a',
+      borderRadius: 8,
+      borderSkipped: false,
+    },
+  ],
+}))
+
+const visitorsChartDataset = computed(() => ({
+  labels: chartLabels.value,
+  datasets: [
+    {
+      label: 'Visitors',
+      data: visibleData.value.map((item) => item.visitors),
+      borderColor: theme.value === 'dark' ? '#38bdf8' : '#0284c7',
+      backgroundColor: 'rgba(56, 189, 248, 0.18)',
+      borderWidth: 3,
+      pointBackgroundColor: '#38bdf8',
+      pointBorderColor: '#e2e8f0',
+      pointRadius: 4,
+      fill: true,
+      tension: 0.35,
+    },
+  ],
+}))
+
 const chartDataset = computed(() => ({
   labels: chartLabels.value,
   datasets: [
@@ -135,17 +167,12 @@ const chartDataset = computed(() => ({
   ],
 }))
 
-const chartOptions = computed(() => ({
+const baseChartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
     legend: {
       display: false,
-    },
-    tooltip: {
-      callbacks: {
-        label: (context: { parsed: { y: number | null } }) => `${(context.parsed.y ?? 0).toFixed(1)}% conversion`,
-      },
     },
   },
   scales: {
@@ -158,15 +185,64 @@ const chartOptions = computed(() => ({
       },
     },
     y: {
-      beginAtZero: false,
-      suggestedMin: 2,
-      suggestedMax: 5.5,
       grid: {
         color: theme.value === 'dark' ? 'rgba(148, 163, 184, 0.12)' : 'rgba(71, 85, 105, 0.12)',
       },
       ticks: {
         color: theme.value === 'dark' ? '#cbd5e1' : '#475569',
+      },
+    },
+  },
+}))
+
+const chartOptions = computed(() => ({
+  ...baseChartOptions.value,
+  plugins: {
+    ...baseChartOptions.value.plugins,
+    tooltip: {
+      callbacks: {
+        label: (context: { parsed: { y: number | null } }) => `${(context.parsed.y ?? 0).toFixed(1)}% conversion`,
+      },
+    },
+  },
+  scales: {
+    ...baseChartOptions.value.scales,
+    y: {
+      ...baseChartOptions.value.scales.y,
+      beginAtZero: false,
+      suggestedMin: 2,
+      suggestedMax: 5.5,
+      ticks: {
+        ...baseChartOptions.value.scales.y.ticks,
         callback: (value: string | number) => `${value}%`,
+      },
+    },
+  },
+}))
+
+const revenueChartOptions = computed(() => ({
+  ...baseChartOptions.value,
+  scales: {
+    ...baseChartOptions.value.scales,
+    y: {
+      ...baseChartOptions.value.scales.y,
+      ticks: {
+        ...baseChartOptions.value.scales.y.ticks,
+        callback: (value: string | number) => `$${Number(value) / 1000}k`,
+      },
+    },
+  },
+}))
+
+const visitorsChartOptions = computed(() => ({
+  ...baseChartOptions.value,
+  scales: {
+    ...baseChartOptions.value.scales,
+    y: {
+      ...baseChartOptions.value.scales.y,
+      ticks: {
+        ...baseChartOptions.value.scales.y.ticks,
+        callback: (value: string | number) => `${Number(value) / 1000}k`,
       },
     },
   },
@@ -260,6 +336,46 @@ function formatCompact(value: number) {
                     {{ card.delta.value }}
                   </span>
                   <span class="text-caption text-medium-emphasis">vs previous month</span>
+                </div>
+              </v-card-text>
+            </v-card>
+          </v-col>
+        </v-row>
+
+        <v-row class="mb-6">
+          <v-col cols="12" md="6">
+            <v-card
+              :class="isDarkTheme ? 'chart-card chart-card-dark' : 'chart-card chart-card-light'"
+              rounded="xl"
+              variant="flat"
+            >
+              <v-card-title class="d-flex align-center justify-space-between pb-0 pt-5 px-5">
+                <span class="text-h6 font-weight-medium">Monthly revenue</span>
+                <v-chip color="primary" variant="tonal" size="small">Revenue</v-chip>
+              </v-card-title>
+
+              <v-card-text class="pa-5">
+                <div style="height: 300px;">
+                  <Bar :data="revenueChartDataset" :options="revenueChartOptions" />
+                </div>
+              </v-card-text>
+            </v-card>
+          </v-col>
+
+          <v-col cols="12" md="6">
+            <v-card
+              :class="isDarkTheme ? 'chart-card chart-card-dark' : 'chart-card chart-card-light'"
+              rounded="xl"
+              variant="flat"
+            >
+              <v-card-title class="d-flex align-center justify-space-between pb-0 pt-5 px-5">
+                <span class="text-h6 font-weight-medium">Visitors over time</span>
+                <v-chip color="primary" variant="tonal" size="small">Traffic</v-chip>
+              </v-card-title>
+
+              <v-card-text class="pa-5">
+                <div style="height: 300px;">
+                  <Line :data="visitorsChartDataset" :options="visitorsChartOptions" />
                 </div>
               </v-card-text>
             </v-card>
