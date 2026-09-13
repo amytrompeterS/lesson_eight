@@ -18,10 +18,10 @@ import metrics from './data/metrics.json'
 type MetricMonth = {
   month: string
   label: string
-  revenue: number
-  visitors: number
-  conversion: number
-  orders: number
+  shipmentVolume: number
+  onTimeDeliveryRate: number
+  regionalPerformance: number
+  openExceptions: number
 }
 
 const dataset = metrics as MetricMonth[]
@@ -44,125 +44,106 @@ const visibleData = computed(() => {
 
 const previousMonth = computed(() => dataset[dataset.length - 2])
 
-const currentView = computed(() => {
-  if (selectedMonth.value === 'all') {
-    return {
-      label: '2025 year view',
-      values: dataset,
-    }
-  }
-
-  return {
-    label: dataset.find((item) => item.month === selectedMonth.value)?.label ?? 'Selected month',
-    values: dataset.filter((item) => item.month === selectedMonth.value),
-  }
-})
-
 const summaryCards = computed(() => {
   const currentValues = visibleData.value
   const currentIndex = selectedMonth.value === 'all' ? dataset.length - 1 : dataset.findIndex((item) => item.month === selectedMonth.value)
   const compareIndex = selectedMonth.value === 'all' ? dataset.length - 2 : Math.max(0, currentIndex - 1)
   const previousValues = selectedMonth.value === 'all' ? [previousMonth.value] : [dataset[compareIndex]]
 
-  const revenueCurrent = selectedMonth.value === 'all' ? currentValues.reduce((sum, item) => sum + item.revenue, 0) : currentValues[0].revenue
-  const visitorsCurrent = selectedMonth.value === 'all' ? currentValues.reduce((sum, item) => sum + item.visitors, 0) : currentValues[0].visitors
-  const conversionCurrent = selectedMonth.value === 'all' ? currentValues.reduce((sum, item) => sum + item.conversion, 0) / currentValues.length : currentValues[0].conversion
-  const ordersCurrent = selectedMonth.value === 'all' ? currentValues.reduce((sum, item) => sum + item.orders, 0) : currentValues[0].orders
+  const shipmentVolumeCurrent = selectedMonth.value === 'all'
+    ? currentValues.reduce((sum, item) => sum + item.shipmentVolume, 0)
+    : currentValues[0].shipmentVolume
+  const onTimeCurrent = selectedMonth.value === 'all'
+    ? currentValues.reduce((sum, item) => sum + item.onTimeDeliveryRate, 0) / currentValues.length
+    : currentValues[0].onTimeDeliveryRate
+  const regionalCurrent = selectedMonth.value === 'all'
+    ? currentValues.reduce((sum, item) => sum + item.regionalPerformance, 0)
+    : currentValues[0].regionalPerformance
+  const exceptionsCurrent = selectedMonth.value === 'all'
+    ? currentValues.reduce((sum, item) => sum + item.openExceptions, 0)
+    : currentValues[0].openExceptions
 
-  const revenuePrev = selectedMonth.value === 'all' ? previousValues[0].revenue : dataset[compareIndex]?.revenue ?? revenueCurrent
-  const visitorsPrev = selectedMonth.value === 'all' ? previousValues[0].visitors : dataset[compareIndex]?.visitors ?? visitorsCurrent
-  const conversionPrev = selectedMonth.value === 'all' ? previousValues[0].conversion : dataset[compareIndex]?.conversion ?? conversionCurrent
-  const ordersPrev = selectedMonth.value === 'all' ? previousValues[0].orders : dataset[compareIndex]?.orders ?? ordersCurrent
+  const shipmentPrev = selectedMonth.value === 'all' ? previousValues[0].shipmentVolume : dataset[compareIndex]?.shipmentVolume ?? shipmentVolumeCurrent
+  const onTimePrev = selectedMonth.value === 'all' ? previousValues[0].onTimeDeliveryRate : dataset[compareIndex]?.onTimeDeliveryRate ?? onTimeCurrent
+  const regionalPrev = selectedMonth.value === 'all' ? previousValues[0].regionalPerformance : dataset[compareIndex]?.regionalPerformance ?? regionalCurrent
+  const exceptionsPrev = selectedMonth.value === 'all' ? previousValues[0].openExceptions : dataset[compareIndex]?.openExceptions ?? exceptionsCurrent
 
-  const cards = [
+  return [
     {
-      label: 'Revenue',
-      value: selectedMonth.value === 'all' ? formatCurrency(revenueCurrent) : formatCurrency(revenueCurrent),
-      delta: calculateDelta(revenueCurrent, revenuePrev),
-      tone: revenueCurrent >= revenuePrev ? 'success' : 'error',
-      icon: revenueCurrent >= revenuePrev ? 'mdi-arrow-up' : 'mdi-arrow-down',
+      label: 'Shipment Volume',
+      value: formatCompact(shipmentVolumeCurrent),
+      delta: calculateDelta(shipmentVolumeCurrent, shipmentPrev),
+      tone: shipmentVolumeCurrent >= shipmentPrev ? 'success' : 'error',
+      icon: shipmentVolumeCurrent >= shipmentPrev ? 'mdi-arrow-up' : 'mdi-arrow-down',
     },
     {
-      label: 'Visitors',
-      value: selectedMonth.value === 'all' ? formatCompact(visitorsCurrent) : formatCompact(visitorsCurrent),
-      delta: calculateDelta(visitorsCurrent, visitorsPrev),
-      tone: visitorsCurrent >= visitorsPrev ? 'success' : 'error',
-      icon: visitorsCurrent >= visitorsPrev ? 'mdi-arrow-up' : 'mdi-arrow-down',
+      label: 'On-time Delivery Rate',
+      value: `${onTimeCurrent.toFixed(1)}%`,
+      delta: calculateDelta(onTimeCurrent, onTimePrev),
+      tone: onTimeCurrent >= onTimePrev ? 'success' : 'error',
+      icon: onTimeCurrent >= onTimePrev ? 'mdi-arrow-up' : 'mdi-arrow-down',
     },
     {
-      label: 'Conversion',
-      value: selectedMonth.value === 'all' ? `${(conversionCurrent).toFixed(1)}%` : `${conversionCurrent.toFixed(1)}%`,
-      delta: calculateDelta(conversionCurrent, conversionPrev),
-      tone: conversionCurrent >= conversionPrev ? 'success' : 'error',
-      icon: conversionCurrent >= conversionPrev ? 'mdi-arrow-up' : 'mdi-arrow-down',
+      label: 'Regional Performance',
+      value: formatCurrencyCompact(regionalCurrent),
+      delta: calculateDelta(regionalCurrent, regionalPrev),
+      tone: regionalCurrent >= regionalPrev ? 'success' : 'error',
+      icon: regionalCurrent >= regionalPrev ? 'mdi-arrow-up' : 'mdi-arrow-down',
     },
     {
-      label: 'Orders',
-      value: selectedMonth.value === 'all' ? formatCompact(ordersCurrent) : formatCompact(ordersCurrent),
-      delta: calculateDelta(ordersCurrent, ordersPrev),
-      tone: ordersCurrent >= ordersPrev ? 'success' : 'error',
-      icon: ordersCurrent >= ordersPrev ? 'mdi-arrow-up' : 'mdi-arrow-down',
+      label: 'Open Exceptions',
+      value: formatCompact(exceptionsCurrent),
+      delta: calculateDelta(exceptionsCurrent, exceptionsPrev),
+      tone: exceptionsCurrent <= exceptionsPrev ? 'success' : 'error',
+      icon: exceptionsCurrent <= exceptionsPrev ? 'mdi-arrow-down' : 'mdi-arrow-up',
     },
   ]
-
-  return cards
 })
 
-const chartLabels = computed(() => visibleData.value.map((item) => item.label))
-const chartValues = computed(() => visibleData.value.map((item) => Number(item.conversion.toFixed(2))))
-
-const revenueChartDataset = computed(() => ({
-  labels: chartLabels.value,
+const onTimeChartData = computed(() => ({
+  labels: visibleData.value.map((item) => item.label),
   datasets: [
     {
-      label: 'Monthly revenue',
-      data: visibleData.value.map((item) => item.revenue),
-      backgroundColor: theme.value === 'dark' ? '#4ade80' : '#16a34a',
+      label: 'On-time Delivery Rate',
+      data: visibleData.value.map((item) => item.onTimeDeliveryRate),
+      backgroundColor: theme.value === 'dark' ? '#34d399' : '#10b981',
       borderRadius: 8,
       borderSkipped: false,
+      maxBarThickness: 42,
     },
   ],
 }))
 
-const visitorsChartDataset = computed(() => ({
-  labels: chartLabels.value,
+const regionalChartData = computed(() => ({
+  labels: visibleData.value.map((item) => item.label),
   datasets: [
     {
-      label: 'Visitors',
-      data: visibleData.value.map((item) => item.visitors),
-      borderColor: theme.value === 'dark' ? '#38bdf8' : '#0284c7',
-      backgroundColor: 'rgba(56, 189, 248, 0.18)',
+      label: 'Regional Performance',
+      data: visibleData.value.map((item) => item.regionalPerformance),
+      borderColor: theme.value === 'dark' ? '#60a5fa' : '#2563eb',
+      backgroundColor: 'rgba(96, 165, 250, 0.18)',
       borderWidth: 3,
-      pointBackgroundColor: '#38bdf8',
-      pointBorderColor: '#e2e8f0',
-      pointRadius: 4,
       fill: true,
       tension: 0.35,
+      pointBackgroundColor: '#60a5fa',
+      pointRadius: 4,
     },
   ],
 }))
 
-const chartDataset = computed(() => ({
-  labels: chartLabels.value,
+const shipmentChartData = computed(() => ({
+  labels: visibleData.value.map((item) => item.label),
   datasets: [
     {
-      label: 'Conversion',
-      data: chartValues.value,
+      label: 'Shipment Volume',
+      data: visibleData.value.map((item) => item.shipmentVolume),
       borderColor: '#4ade80',
       backgroundColor: 'rgba(74, 222, 128, 0.18)',
       borderWidth: 3,
-      pointBackgroundColor: chartLabels.value.map((_, index) => {
-        if (selectedMonth.value === 'all') return '#8b5cf6'
-        return index === 0 ? '#4ade80' : '#38bdf8'
-      }),
-      pointBorderColor: '#e2e8f0',
-      pointRadius: chartLabels.value.map((_, index) => {
-        if (selectedMonth.value === 'all') return 4
-        return index === 0 ? 6 : 3
-      }),
-      pointHoverRadius: 6,
       fill: true,
       tension: 0.35,
+      pointBackgroundColor: '#4ade80',
+      pointRadius: 4,
     },
   ],
 }))
@@ -195,13 +176,13 @@ const baseChartOptions = computed(() => ({
   },
 }))
 
-const chartOptions = computed(() => ({
+const onTimeChartOptions = computed(() => ({
   ...baseChartOptions.value,
   plugins: {
     ...baseChartOptions.value.plugins,
     tooltip: {
       callbacks: {
-        label: (context: { parsed: { y: number | null } }) => `${(context.parsed.y ?? 0).toFixed(1)}% conversion`,
+        label: (context: { parsed: { y: number | null } }) => `${(context.parsed.y ?? 0).toFixed(1)}% on-time`,
       },
     },
   },
@@ -210,8 +191,8 @@ const chartOptions = computed(() => ({
     y: {
       ...baseChartOptions.value.scales.y,
       beginAtZero: false,
-      suggestedMin: 2,
-      suggestedMax: 5.5,
+      suggestedMin: 88,
+      suggestedMax: 100,
       ticks: {
         ...baseChartOptions.value.scales.y.ticks,
         callback: (value: string | number) => `${value}%`,
@@ -220,12 +201,21 @@ const chartOptions = computed(() => ({
   },
 }))
 
-const revenueChartOptions = computed(() => ({
+const regionalChartOptions = computed(() => ({
   ...baseChartOptions.value,
+  plugins: {
+    ...baseChartOptions.value.plugins,
+    tooltip: {
+      callbacks: {
+        label: (context: { parsed: { y: number | null } }) => `$${(context.parsed.y ?? 0).toLocaleString()} performance`,
+      },
+    },
+  },
   scales: {
     ...baseChartOptions.value.scales,
     y: {
       ...baseChartOptions.value.scales.y,
+      beginAtZero: false,
       ticks: {
         ...baseChartOptions.value.scales.y.ticks,
         callback: (value: string | number) => `$${Number(value) / 1000}k`,
@@ -234,12 +224,21 @@ const revenueChartOptions = computed(() => ({
   },
 }))
 
-const visitorsChartOptions = computed(() => ({
+const chartOptions = computed(() => ({
   ...baseChartOptions.value,
+  plugins: {
+    ...baseChartOptions.value.plugins,
+    tooltip: {
+      callbacks: {
+        label: (context: { parsed: { y: number | null } }) => `${(context.parsed.y ?? 0).toLocaleString()} shipments`,
+      },
+    },
+  },
   scales: {
     ...baseChartOptions.value.scales,
     y: {
       ...baseChartOptions.value.scales.y,
+      beginAtZero: false,
       ticks: {
         ...baseChartOptions.value.scales.y.ticks,
         callback: (value: string | number) => `${Number(value) / 1000}k`,
@@ -253,20 +252,21 @@ function calculateDelta(current: number, previous: number) {
   const pct = previous === 0 ? 0 : (diff / previous) * 100
   return {
     value: `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`,
-    trendUp: diff >= 0,
+    tone: diff >= 0 ? 'success' : 'error',
   }
-}
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(value)
 }
 
 function formatCompact(value: number) {
   return new Intl.NumberFormat('en-US', {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(value)
+}
+
+function formatCurrencyCompact(value: number) {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
     notation: 'compact',
     maximumFractionDigits: 1,
   }).format(value)
@@ -279,7 +279,7 @@ function formatCompact(value: number) {
       <v-container class="d-flex align-center px-0" fluid>
         <div class="d-flex align-center flex-grow-1 app-bar-left">
           <v-icon color="primary" size="large" class="ml-2 mr-3">mdi-chart-timeline-variant</v-icon>
-          <span class="text-h6 font-weight-medium">Dashboard</span>
+          <span class="text-h6 font-weight-medium">FastForward Logistics</span>
         </div>
 
         <v-btn
@@ -310,8 +310,10 @@ function formatCompact(value: number) {
     <v-main :class="isDarkTheme ? 'bg-background' : 'bg-grey-lighten-4'">
       <v-container fluid class="py-8 px-6">
         <div class="mb-6">
-          <p class="text-overline text-primary mb-2">Overview</p>
-          <h1 class="text-h4 font-weight-bold mb-0">{{ currentView.label }}</h1>
+          <p class="text-overline text-primary mb-2">Operations overview</p>
+          <h1 class="text-h4 font-weight-bold mb-0">
+            {{ selectedMonth === 'all' ? '2025 year view' : dataset.find((item) => item.month === selectedMonth)?.label ?? 'Selected month' }}
+          </h1>
         </div>
 
         <v-row class="mb-6">
@@ -350,13 +352,13 @@ function formatCompact(value: number) {
               variant="flat"
             >
               <v-card-title class="d-flex align-center justify-space-between pb-0 pt-5 px-5">
-                <span class="text-h6 font-weight-medium">Monthly revenue</span>
-                <v-chip color="primary" variant="tonal" size="small">Revenue</v-chip>
+                <span class="text-h6 font-weight-medium">On-time Delivery Rate</span>
+                <v-chip color="primary" variant="tonal" size="small">Delivery</v-chip>
               </v-card-title>
 
               <v-card-text class="pa-5">
-                <div style="height: 300px;">
-                  <Bar :data="revenueChartDataset" :options="revenueChartOptions" />
+                <div style="height: 280px;">
+                  <Bar :data="onTimeChartData" :options="onTimeChartOptions" />
                 </div>
               </v-card-text>
             </v-card>
@@ -369,13 +371,13 @@ function formatCompact(value: number) {
               variant="flat"
             >
               <v-card-title class="d-flex align-center justify-space-between pb-0 pt-5 px-5">
-                <span class="text-h6 font-weight-medium">Visitors over time</span>
-                <v-chip color="primary" variant="tonal" size="small">Traffic</v-chip>
+                <span class="text-h6 font-weight-medium">Regional Performance</span>
+                <v-chip color="primary" variant="tonal" size="small">Region</v-chip>
               </v-card-title>
 
               <v-card-text class="pa-5">
-                <div style="height: 300px;">
-                  <Line :data="visitorsChartDataset" :options="visitorsChartOptions" />
+                <div style="height: 280px;">
+                  <Line :data="regionalChartData" :options="regionalChartOptions" />
                 </div>
               </v-card-text>
             </v-card>
@@ -390,13 +392,13 @@ function formatCompact(value: number) {
               variant="flat"
             >
               <v-card-title class="d-flex align-center justify-space-between pb-0 pt-5 px-5">
-                <span class="text-h6 font-weight-medium">Conversion trend</span>
+                <span class="text-h6 font-weight-medium">Shipment volume trend</span>
                 <v-chip color="primary" variant="tonal" size="small">{{ selectedMonth === 'all' ? 'Annual view' : 'Selected month' }}</v-chip>
               </v-card-title>
 
               <v-card-text class="pa-5">
-                <div style="height: 350px;">
-                  <Line :data="chartDataset" :options="chartOptions" />
+                <div style="height: 360px;">
+                  <Line :data="shipmentChartData" :options="chartOptions" />
                 </div>
               </v-card-text>
             </v-card>
